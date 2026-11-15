@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v4
       - id: f
         run: |
-          apps=$(find . -name pubspec.yaml -not -path '*/.*' -not -path '*/build/*' -exec dirname {} \; | sed 's|^\./||' | sort | jq -R . | jq -sc .)
+          apps=$(find . -name pubspec.yaml -not -path '*/.*' -not -path '*/build/*' -exec dirname {} \; | sed 's|^\./||' | sort | jq -R '{path: ., name: gsub("/"; "_")}' | jq -sc .)
           echo "Found Flutter apps: $apps"
           [ "$apps" != "[]" ] || { echo "ERROR: no pubspec.yaml found in repo. Folders were not uploaded."; find . -not -path './.git/*' | head -50; exit 1; }
           echo "apps=$apps" >> "$GITHUB_OUTPUT"
@@ -34,7 +34,7 @@ jobs:
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" > /dev/null || true
       - name: Build Android APK
-        working-directory: ${{ matrix.app }}
+        working-directory: ${{ matrix.app.path }}
         run: |
           PKG=$(grep '^name:' pubspec.yaml | awk '{print $2}')
           flutter create --platforms=android --project-name "$PKG" --org com.myagents .
@@ -50,8 +50,8 @@ jobs:
           flutter build apk --release
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ replace(matrix.app, '/', '_') }}-apk
-          path: ${{ matrix.app }}/build/app/outputs/flutter-apk/app-release.apk
+          name: ${{ matrix.app.name }}-apk
+          path: ${{ matrix.app.path }}/build/app/outputs/flutter-apk/app-release.apk
   windows:
     needs: discover
     runs-on: windows-latest
@@ -64,7 +64,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with: { channel: stable }
       - name: Build Windows application
-        working-directory: ${{ matrix.app }}
+        working-directory: ${{ matrix.app.path }}
         shell: cmd
         run: |
           for /f "tokens=2" %%a in ('findstr /b "name:" pubspec.yaml') do set PKG=%%a
@@ -74,5 +74,5 @@ jobs:
           call flutter build windows --release
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ replace(matrix.app, '/', '_') }}-windows
-          path: ${{ matrix.app }}/build/windows/x64/runner/Release
+          name: ${{ matrix.app.name }}-windows
+          path: ${{ matrix.app.path }}/build/windows/x64/runner/Release
