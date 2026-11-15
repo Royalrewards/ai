@@ -33,6 +33,18 @@ jobs:
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" > /dev/null || true
+      - name: Force compileSdk 36 for app and all plugins
+        run: |
+          mkdir -p ~/.gradle/init.d
+          cat > ~/.gradle/init.d/sdk36.gradle <<'EOF'
+          gradle.beforeProject { p ->
+            p.afterEvaluate {
+              if (p.plugins.hasPlugin('com.android.library') || p.plugins.hasPlugin('com.android.application')) {
+                p.android.compileSdkVersion 36
+              }
+            }
+          }
+          EOF
       - name: Build Android APK
         working-directory: ${{ matrix.app.path }}
         run: |
